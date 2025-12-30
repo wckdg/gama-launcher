@@ -221,4 +221,4 @@ print("   • Everything works out of the box!")
 print("   • No installation required - fully portable!")
 
 print("\n" + "="*60)
-input("\nPress Enter to exit...")
+

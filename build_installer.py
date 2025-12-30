@@ -3,6 +3,14 @@ Build script - Creates Windows installer with Inno Setup
 FIXED: Adds --hidden-import=requests for Minecraft downloads
 """
 
+
+import sys
+import io
+
+# Fix encoding for GitHub Actions
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 import os
 import shutil
 import subprocess
@@ -47,7 +55,7 @@ try:
     print("✅ EXE built successfully!")
 except subprocess.CalledProcessError as e:
     print(f"❌ PyInstaller failed: {e}")
-    input("\nPress Enter to exit...")
+    
     exit(1)
 
 # Check for Inno Setup
@@ -62,7 +70,7 @@ if not os.path.exists(inno_path):
     print("   3. Run this script again")
     print("\n📂 Files created:")
     print("   • dist/GamaLauncher.exe (standalone)")
-    input("\nPress Enter to exit...")
+    
     exit(1)
 
 # Create installer with Inno Setup
@@ -78,7 +86,7 @@ try:
     print("✅ Installer created successfully!")
 except subprocess.CalledProcessError as e:
     print(f"❌ Inno Setup failed: {e}")
-    input("\nPress Enter to exit...")
+    
     exit(1)
 
 # Show results
@@ -114,4 +122,3 @@ print("   ✓ Start menu entry")
 print("   ✓ Uninstaller")
 
 print("\n" + "="*60)
-input("\nPress Enter to exit...")
