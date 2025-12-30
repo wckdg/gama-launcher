@@ -1,0 +1,46 @@
+1. Enable server generation:
+   /dh config generation.mode INTERNAL_SERVER
+
+2. Check current config:
+   /dh config generation.mode
+   Should show: INTERNAL_SERVER ✅
+
+3. Pre-generate spawn area:
+   /dh pregen start minecraft:overworld 0 0 250
+   
+   What this does:
+   → Generates LODs in 250 chunk radius (4000 blocks)
+   → Takes 30-40 minutes
+   → All players get LODs immediately!
+
+4. Check progress:
+   /dh pregen status
+   
+   Shows:
+   → Percentage complete
+   → Estimated time remaining
+   → Chunks processed
+
+5. When done:
+   Server has LODs ready! ✅
+
+
+
+Use Chunky to pre-generate larger area:
+
+/chunky world minecraft:overworld
+/chunky center 0 0
+/chunky radius 750
+/chunky start
+
+This generates:
+→ 750 chunk radius = 12,000 blocks
+→ Takes 40-60 minutes with C2ME
+→ BlueMap will show full map ✅
+
+After Chunky finishes:
+/bluemap reload
+or
+/bluemap update
+
+BlueMap re-renders and looks complete! ✨

@@ -1,0 +1,151 @@
+name: Build All Platforms
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows-installer:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
+      
+      - name: Download Inno Setup
+        run: |
+          curl -L -o innosetup.exe "https://jrsoftware.org/download.php/is.exe"
+          .\innosetup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+        shell: powershell
+      
+      - name: Wait for installation
+        run: Start-Sleep -Seconds 30
+        shell: powershell
+      
+      - name: Build
+        run: python build_installer.py
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/GamaLauncher-Setup-v*.exe
+
+  build-windows-portable:
+    name: Build Windows Portable
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
+      
+      - name: Build EXE
+        run: python build_installer.py
+        continue-on-error: true
+      
+      - name: Build Portable
+        run: python build_portable.py
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: dist/GamaLauncher-Portable-v*.zip
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
+          brew install create-dmg
+      
+      - name: Create icon
+        run: |
+          mkdir -p icon.iconset
+          sips -z 16 16 Logo.jpg --out icon.iconset/icon_16x16.png || touch icon.iconset/icon_16x16.png
+          sips -z 32 32 Logo.jpg --out icon.iconset/icon_32x32.png || touch icon.iconset/icon_32x32.png
+          sips -z 128 128 Logo.jpg --out icon.iconset/icon_128x128.png || touch icon.iconset/icon_128x128.png
+          sips -z 256 256 Logo.jpg --out icon.iconset/icon_256x256.png || touch icon.iconset/icon_256x256.png
+          iconutil -c icns icon.iconset -o icon.icns || touch icon.icns
+      
+      - name: Build
+        run: python build_macos.py
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/GamaLauncher-v*-macOS.dmg
+
+  create-release:
+    name: Create Release
+    needs: [build-windows-installer, build-windows-portable, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release/
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-portable
+          path: release/
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: release/
+      
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Gama Launcher v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## 🎉 Gama Launcher v${{ steps.version.outputs.VERSION }}
+            
+            ### 📦 Downloads
+            - **Windows Installer** - Recommended
+            - **Windows Portable** - No installation
+            - **macOS DMG** - For Mac users
+            
+            ### 🎮 Server
+            IP: `gamaklub.ggwp.cc` (auto-added)
+            
+            ### 💡 Requirements
+            Windows 10/11 or macOS 10.15+ | 4GB+ RAM
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,39 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+*.tmp
+
+# Runtime (game files created by launcher)
+runtime/
+
+# Config (user settings)
+config.json
+
+# Temp files
+*.bak
+*~
+.DS_Store
+Thumbs.db
+
+# Large files (optional - uncomment if you want mods/shaders in repo)
+# mods/
+# shaderpacks/

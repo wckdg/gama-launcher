@@ -1,0 +1,52 @@
+{
+  "tiers": {
+    "Very Low": {
+      "mods": 83,
+      "ram": 4,
+      "mod_folders": ["base"],
+      "shader_policy": "DISALLOWED",
+      "shaderpack_when_enabled": null,
+      "description": "Maximum FPS for very weak systems. Fast graphics, minimal effects. No shaders available."
+    },
+    "Low": {
+      "mods": 83,
+      "ram": 6,
+      "mod_folders": ["base"],
+      "shader_policy": "DISALLOWED",
+      "shaderpack_when_enabled": null,
+      "description": "Good performance for integrated graphics. Balanced settings. No shaders available."
+    },
+    "Medium": {
+      "mods": 87,
+      "ram": 8,
+      "mod_folders": ["base", "medium"],
+      "shader_policy": "OPTIONAL",
+      "shaderpack_when_enabled": "ComplementaryReimagined_r5.6.1.zip",
+      "description": "Adds 3D skin layers, falling leaves, ambient sounds. Shaders optional (Complementary Reimagined)."
+    },
+    "High": {
+      "mods": 87,
+      "ram": 10,
+      "mod_folders": ["base", "medium"],
+      "shader_policy": "OPTIONAL",
+      "shaderpack_when_enabled": "ComplementaryReimagined_r5.6.1.zip",
+      "description": "Best balance of visuals and performance. Shaders optional (Complementary Reimagined)."
+    },
+    "Very High": {
+      "mods": 89,
+      "ram": 12,
+      "mod_folders": ["base", "medium", "heavy"],
+      "shader_policy": "OPTIONAL",
+      "shaderpack_when_enabled": "ComplementaryReimagined_r5.6.1.zip",
+      "description": "Adds Distant Horizons for 256+ chunk view distance. Shaders optional (Complementary Reimagined)."
+    },
+    "Ultra": {
+      "mods": 93,
+      "ram": 16,
+      "mod_folders": ["base", "medium", "heavy", "ultimate"],
+      "shader_policy": "OPTIONAL",
+      "shaderpack_when_enabled": "ComplementaryUnbound_r5.6.1.zip",
+      "description": "Maximum graphics: physics mod, sound physics, particles, blur effects. Shaders optional (Complementary Unbound)."
+    }
+  }
+}

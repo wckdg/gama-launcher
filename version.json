@@ -1,0 +1,11 @@
+{
+  "version": "2.1.0",
+  "build_date": "2025-12-30",
+  "changelog": [
+    "NEW: Auto-updater from GitHub",
+    "NEW: System recommendations",
+    "NEW: Pre-configured Gama server",
+    "FIXED: Vanilla sounds",
+    "IMPROVED: New tier system"
+  ]
+}
