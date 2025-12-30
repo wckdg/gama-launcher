@@ -53,7 +53,7 @@ print("\n⚙️  Building macOS app with PyInstaller...")
 
 pyinstaller_args = [
     'pyinstaller',
-    '--onedir',  # Changed from --onefile for better compatibility
+    '--onedir',
     '--windowed',
     '--name=GamaLauncher',
     '--icon=icon.icns',
@@ -62,7 +62,7 @@ pyinstaller_args = [
     '--add-data=shaderpacks:shaderpacks',
     '--add-data=mod_lists.json:.',
     '--osx-bundle-identifier=com.gamaklub.launcher',
-    '--target-architecture=universal2',  # Works on Intel + Apple Silicon
+    # NOTE: Removed --target-architecture=universal2 due to PIL compatibility
     # Hidden imports
     '--hidden-import=customtkinter',
     '--hidden-import=PIL',
@@ -74,6 +74,13 @@ pyinstaller_args = [
     '--hidden-import=certifi',
     'launcher.py'
 ]
+
+# Check if assets exist and add them
+if Path("assets").exists():
+    print("  ✓ Found assets/ folder - will be included")
+    pyinstaller_args.insert(-1, '--add-data=assets:assets')
+else:
+    print("  ⚠️  No assets/ folder found (run download_assets.py first)")
 
 try:
     subprocess.run(pyinstaller_args, check=True)
@@ -192,7 +199,17 @@ print("\n💡 DMG includes:")
 print("  ✓ Launcher app")
 print("  ✓ All mods (base/medium/heavy/ultimate)")
 print("  ✓ All shaderpacks")
+
+if Path("assets").exists():
+    print("  ✓ Pre-downloaded assets (~400MB)")
+else:
+    print("  ⚠️  No assets (users will download on first launch)")
+
 print("  ✓ Config files")
 print("  ✓ Drag-to-install interface")
+
+print("\n📝 macOS Installation Notes:")
+print("  Users must right-click → Open on first launch")
+print("  (due to unsigned app)")
 
 print("\n" + "="*60)

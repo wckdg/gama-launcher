@@ -64,12 +64,6 @@ jobs:
       - name: Install dependencies
         run: pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
       
-      - name: Build EXE
-        run: python build_installer.py
-        env:
-          PYTHONIOENCODING: utf-8
-        continue-on-error: true
-      
       - name: Build Portable ZIP
         run: python build_portable.py
         env:
@@ -152,25 +146,77 @@ jobs:
         with:
           name: Gama Launcher v${{ steps.version.outputs.VERSION }}
           body: |
-            ## Gama Launcher v${{ steps.version.outputs.VERSION }}
+            ## 🎮 Gama Launcher v${{ steps.version.outputs.VERSION }}
             
-            ### Downloads
-            - **Windows Installer** (.exe) - Recommended for Windows users
-            - **Windows Portable** (.zip) - No installation required
-            - **macOS** (.dmg) - For Mac users
+            ### 📥 Downloads
             
-            ### macOS Installation
-            1. Download and open the DMG
-            2. Drag GamaLauncher to Applications
-            3. **Right-click** the app and select "Open" (first time only)
-            4. Click "Open" when warned about unidentified developer
+            **Windows:**
+            - **Installer** (.exe) - Recommended for most users
+              - Installs to Program Files
+              - Adds Start Menu shortcuts
+              - Automatic updates
+            - **Portable** (.zip) - No installation required
+              - Extract and run anywhere
+              - Perfect for USB drives
+              - All files in one folder
             
-            ### Server
-            IP: `gamaklub.ggwp.cc` (automatically added to multiplayer list)
+            **macOS:**
+            - **DMG Installer** (.dmg) - For Apple Silicon (M1/M2/M3) Macs
+              - Drag to Applications
+              - **Important:** Right-click → Open on first launch
             
-            ### Requirements
-            - Windows 10/11 or macOS 10.15+
-            - 4GB RAM minimum (8GB+ recommended)
+            ---
+            
+            ### 🎯 Features
+            - ✅ Quality presets: Very Low → Ultra
+            - ✅ Optional shader support (Complementary)
+            - ✅ Pre-downloaded game assets (~400MB, instant setup)
+            - ✅ All mods included (83-93 mods depending on tier)
+            - ✅ Automatic Java 17 download
+            - ✅ Automatic Minecraft + Fabric installation
+            - ✅ Smart system recommendations
+            - ✅ Server auto-configured in multiplayer list
+            
+            ### 🖥️ System Requirements
+            - **Minimum:** 4GB RAM, integrated graphics
+            - **Recommended:** 8GB+ RAM, dedicated GPU
+            - **For Shaders:** 12GB+ RAM, GTX 1060 / RX 580 or better
+            
+            ### 🌐 Server
+            - **Name:** GAMA KLUB
+            - **IP:** `gamaklub.ggwp.cc`
+            - Automatically added to your multiplayer list!
+            
+            ---
+            
+            ### 📝 macOS Installation Instructions
+            
+            1. Download and open the DMG file
+            2. Drag **GamaLauncher** to the **Applications** folder
+            3. **Important:** Right-click the app and select **"Open"**
+            4. Click **"Open"** again when warned
+            5. The app is now trusted and will open normally!
+            
+            **Alternative (Terminal):**
+            ```
+            xattr -cr /Applications/GamaLauncher.app
+            ```
+            
+            ---
+            
+            ### 🐛 Known Issues
+            - macOS: Requires right-click → Open on first launch (unsigned app)
+            - First launch may take 2-3 minutes (downloading Java + Minecraft)
+            
+            ### 💬 Support
+            - Report issues on GitHub
+            - Join our Discord: [Your Discord Link]
+            
+            ---
+            
+            **Full Changelog:** https://github.com/wckdg/gama-launcher/commits/v${{ steps.version.outputs.VERSION }}
           files: release/*
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

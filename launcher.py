@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Gama Server Launcher - VERSION 2.1.0
 COMPLETE: New tiers + shader checkbox + sound fix + system recommendations + log window
@@ -15,8 +16,6 @@ from datetime import datetime
 import requests
 from typing import Dict, List, Optional
 import re
-from updater import GamaUpdater
-
 
 # Configuration
 APPNAME = "GAMA LAUNCHER"
@@ -25,55 +24,65 @@ MCVERSION = "1.20.1"
 FABRICVERSION = "0.17.2"
 JAVAVERSION = "17"
 
-
 class GamaLauncher(ctk.CTk):
     def __init__(self):
         super().__init__()
-    
-    # Detect paths based on platform and execution mode
+        
+        # Detect paths based on platform and execution mode
         if getattr(sys, 'frozen', False):
-        # Running as bundled executable
+            # Running as bundled executable
             if sys.platform == 'darwin':
-            # macOS app bundle
+                # macOS app bundle
                 exe_path = Path(sys.executable)
                 if 'Contents/MacOS' in str(exe_path):
-                # Inside .app bundle - use Resources folder
+                    # Inside .app bundle - use Resources folder
                     self.base_dir = exe_path.parent.parent / 'Resources'
                 else:
-                # Standalone executable
+                    # Standalone executable
                     self.base_dir = exe_path.parent
             else:
-            # Windows EXE
+                # Windows EXE
                 self.base_dir = Path(sys.executable).parent
         else:
-        # Running as Python script
+            # Running as Python script
             self.base_dir = Path(__file__).parent
-    
-    # Safety check - ensure base_dir is valid
+        
+        # Safety check - ensure base_dir is valid
         if self.base_dir is None or not self.base_dir.exists():
             self.base_dir = Path.home() / 'GamaLauncher'
             self.base_dir.mkdir(parents=True, exist_ok=True)
-            print(f"⚠️  Created fallback directory: {self.base_dir}")
-    
+            print(f"⚠️ Created fallback directory: {self.base_dir}")
+        
         print(f"📁 Base directory: {self.base_dir}")
-    
-    # Set up directories
-        self.mods_dir = self.base_dir / "mods"
+        
+        # Set up directories
+        self.mods_source_dir = self.base_dir / "mods"
         self.shaderpacks_dir = self.base_dir / "shaderpacks"
         self.mod_lists_file = self.base_dir / "mod_lists.json"
-    
+        
         # Runtime directory (where Minecraft/Java will be installed)
         if sys.platform == 'darwin':
             self.runtime_dir = Path.home() / 'Library' / 'Application Support' / 'GamaLauncher'
         else:
             self.runtime_dir = self.base_dir / "runtime"
-    
+        
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
-    
         self.minecraft_dir = self.runtime_dir / ".minecraft"
         self.java_dir = self.runtime_dir / "java"
-        self.fabric_dir = self.minecraft_dir / "versions"
-
+        self.config_file = self.runtime_dir / "config.json"
+        
+        # Load configuration and mod lists
+        self.load_config()
+        self.load_mod_lists()
+        
+        # Detect system specs
+        self.detected_specs = self.detect_system_specs()
+        
+        # Setup window and create widgets
+        self.setup_window()
+        self.create_widgets()
+        
+        print("✓ Launcher initialized successfully!")
     
     def log_print(self, message: str):
         """Print to console AND log window"""
@@ -118,7 +127,6 @@ class GamaLauncher(ctk.CTk):
                     self.config["last_tier"] = tier_migration[old_tier]
                     print(f"🔄 Migrated tier: {old_tier} → {self.config['last_tier']}")
                     self.save_config()
-                
             except:
                 self.config = default_config
         else:
@@ -130,13 +138,11 @@ class GamaLauncher(ctk.CTk):
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
-            self.log_print(f"Error saving config: {e}")
+            print(f"Error saving config: {e}")
     
     def load_mod_lists(self):
         """Load mod tier configurations"""
-        mod_lists_file = self.mod_lists_file
-        
-        if not mod_lists_file.exists():
+        if not self.mod_lists_file.exists():
             # Create default with new tier names
             default_mod_lists = {
                 "tiers": {
@@ -191,12 +197,12 @@ class GamaLauncher(ctk.CTk):
                 }
             }
             
-            with open(mod_lists_file, 'w', encoding='utf-8') as f:
+            with open(self.mod_lists_file, 'w', encoding='utf-8') as f:
                 json.dump(default_mod_lists, f, indent=2)
             
             self.mod_lists = default_mod_lists
         else:
-            with open(mod_lists_file, 'r', encoding='utf-8') as f:
+            with open(self.mod_lists_file, 'r', encoding='utf-8') as f:
                 self.mod_lists = json.load(f)
     
     def detect_system_specs(self):
@@ -214,23 +220,23 @@ class GamaLauncher(ctk.CTk):
             
             if os.name == "nt":
                 try:
-                    result = subprocess.run(['wmic', 'cpu', 'get', 'name'], 
-                                           capture_output=True, text=True, timeout=3)
+                    result = subprocess.run(['wmic', 'cpu', 'get', 'name'],
+                                          capture_output=True, text=True, timeout=3)
                     lines = result.stdout.strip().split('\n')
                     if len(lines) > 1:
                         cpu_name = lines[1].strip()
                 except:
                     pass
-                
-                if cpu_name == "Unknown CPU":
-                    try:
-                        import winreg
-                        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, 
-                                            r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
-                        cpu_name = winreg.QueryValueEx(key, "ProcessorNameString")[0]
-                        winreg.CloseKey(key)
-                    except:
-                        pass
+            
+            if cpu_name == "Unknown CPU":
+                try:
+                    import winreg
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                        r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
+                    cpu_name = winreg.QueryValueEx(key, "ProcessorNameString")[0]
+                    winreg.CloseKey(key)
+                except:
+                    pass
             
             if cpu_name == "Unknown CPU":
                 cpu_name = platform.processor()
@@ -262,7 +268,6 @@ class GamaLauncher(ctk.CTk):
             
             # ===== RECOMMEND TIER WITHOUT SHADERS =====
             recommended_no_shaders = "Low"
-            
             if ram_gb >= 16 and gpu_vram >= 8:
                 recommended_no_shaders = "Ultra"
             elif ram_gb >= 12 and gpu_vram >= 6:
@@ -279,7 +284,6 @@ class GamaLauncher(ctk.CTk):
             # ===== RECOMMEND TIER WITH SHADERS =====
             # Shaders need +2GB RAM and better GPU
             recommended_with_shaders = "Low"
-            
             if ram_gb >= 18 and gpu_vram >= 10:
                 recommended_with_shaders = "Ultra"
             elif ram_gb >= 14 and gpu_vram >= 8:
@@ -300,9 +304,9 @@ class GamaLauncher(ctk.CTk):
                 "recommended_no_shaders": recommended_no_shaders,
                 "recommended_with_shaders": recommended_with_shaders
             }
-            
+        
         except Exception as e:
-            self.log_print(f"Could not detect system specs: {e}")
+            print(f"Could not detect system specs: {e}")
             return {
                 "ram_gb": 8,
                 "cpu_count": 4,
@@ -525,7 +529,7 @@ class GamaLauncher(ctk.CTk):
         self.log_window = ctk.CTkTextbox(
             log_frame,
             height=120,
-            font=("Consolas", 13),
+            font=("Consolas", 11),
             fg_color="#0a0a0a",
             text_color="#00ff00",
             wrap="word"
@@ -557,7 +561,6 @@ class GamaLauncher(ctk.CTk):
         tier_scroll.pack(fill="both", expand=False)
         
         tiers = self.mod_lists["tiers"]
-        
         tier_icons = {
             "Very Low": "⚡",
             "Low": "🌙",
@@ -681,6 +684,7 @@ class GamaLauncher(ctk.CTk):
         
         # Add +2GB if shaders enabled (realistic overhead)
         shaders_enabled = self.shaders_var.get()
+        
         if shaders_enabled and tier_data.get("shader_policy") == "OPTIONAL":
             total_ram = base_ram + 2
             self.ram_display.configure(text=f"💾 {total_ram}GB RAM ({base_ram}+2 shaders)")
@@ -712,149 +716,29 @@ class GamaLauncher(ctk.CTk):
         self.username_error.configure(text="")
         return True
     
-    def check_server_status(self):
-        """Check if Gama server is online"""
-        try:
-            import socket
-            host = "supernova.dathost.net"
-            port = 17225
-            
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(3)
-            result = sock.connect_ex((host, port))
-            sock.close()
-            
-            if result == 0:
-                return {"online": True, "players": "?", "max": "20"}
-            else:
-                return {"online": False}
-                
-        except Exception as e:
-            return {"online": False}
-    def check_for_updates(self):
-        """Check for updates on GitHub"""
-        try:
-        # GitHub repo 
-            GITHUB_REPO = "wckdg/gama-launcher"  
-        
-            updater = GamaUpdater(VERSION, GITHUB_REPO, log_callback=self.log_print)
-        
-            update_info = updater.check_for_updates()
-        
-            if update_info:
-                # Show update dialog
-                self.show_update_dialog(update_info, updater)
-        
-        except Exception as e:
-            self.log_print(f"Update check error: {e}")
-
-    def show_update_dialog(self, update_info: Dict, updater: GamaUpdater):
-        """Show update available dialog"""
-        import tkinter.messagebox as msgbox
-    
-        message = f"""New version available: v{update_info['version']}
-
-    Current version: v{VERSION}
-
-    {update_info['name']}
-
-    Release Notes:
-    {update_info['notes'][:200]}...
-
-    Would you like to download and install this update?"""
-    
-        result = msgbox.askyesno(
-            "Update Available",
-            message,
-            icon='info'
-        )
-    
-        if result:
-            self.download_and_apply_update(update_info, updater)
-
-    def download_and_apply_update(self, update_info: Dict, updater: GamaUpdater):
-        """Download and apply update"""
-        self.log_print("=" * 40)
-        self.log_print("UPDATING LAUNCHER")
-        self.log_print("=" * 40)
-    
-        self.launch_btn.configure(state="disabled", text="UPDATING...")
-    
-        def update_progress(progress: float):
-            self.update_progress(progress, f"Downloading update: {int(progress*100)}%")
-    
-    # Download
-        download_path = updater.download_update(
-            update_info['download_url'],
-            update_info['asset_name'],
-            progress_callback=update_progress
-        )
-    
-        if download_path:
-        # Apply update
-            success = updater.apply_update(download_path)
-        
-            if success:
-                self.log_print("✅ Update will be applied on restart")
-                # Close launcher
-                self.after(2000, self.quit)
-            else:
-                self.log_print("⚠️  Manual installation required")
-                self.launch_btn.configure(state="normal", text="🚀 LAUNCH GAME")
-        else:
-            self.log_print("❌ Update download failed")
-            self.launch_btn.configure(state="normal", text="🚀 LAUNCH GAME")
-
-    def check_java(self):
-        """Check for Java 17 installation"""
-        self.update_status("Checking Java installation...", "#ff8800")
-        self.update_progress(0.1, "Checking Java...")
-        self.log_print("Checking for Java 17...")
-        
-        java_exe = self.java_dir / "bin" / ("java.exe" if os.name == "nt" else "java")
-        
-        if not java_exe.exists():
-            self.update_status("Downloading Java 17...", "#ffaa00")
-            self.update_progress(0.2, "Downloading Java...")
-            self.log_print("Java not found, downloading...")
-            
-            if self.download_java():
-                self.update_status("Java 17 ready", "#00ff00")
-                self.update_progress(1.0, "Java ready")
-                self.log_print("✓ Java 17 ready!")
-            else:
-                self.update_status("Failed to download Java", "#ff0000")
-                self.update_progress(0, "Java download failed")
-                self.log_print("✗ Java download failed!")
-                return
-        else:
-            self.update_status("Java 17 ready", "#00ff00")
-            self.update_progress(1.0, "Java ready")
-            self.log_print("✓ Java 17 found!")
-    
     def download_java(self) -> bool:
         """Download portable Java 17 JRE"""
         try:
             if os.name == "nt":
                 if sys.maxsize > 2**32:
-                    platform = "windows"
+                    platform_name = "windows"
                     arch = "x64"
                 else:
-                    platform = "windows"
+                    platform_name = "windows"
                     arch = "x86"
             else:
-                platform = "linux"
+                platform_name = "linux"
                 arch = "x64"
             
-            api_url = f"https://api.adoptium.net/v3/binary/latest/17/ga/{platform}/{arch}/jre/hotspot/normal/eclipse"
+            api_url = f"https://api.adoptium.net/v3/binary/latest/17/ga/{platform_name}/{arch}/jre/hotspot/normal/eclipse"
             
             self.java_dir.mkdir(parents=True, exist_ok=True)
-            
             self.log_print(f"Downloading Java from Adoptium...")
+            
             response = requests.get(api_url, stream=True, timeout=30)
             response.raise_for_status()
             
-            if platform == "windows":
+            if platform_name == "windows":
                 zip_path = self.java_dir / "java.zip"
             else:
                 zip_path = self.java_dir / "java.tar.gz"
@@ -870,6 +754,7 @@ class GamaLauncher(ctk.CTk):
                     if total_size > 0:
                         percent = downloaded / total_size
                         self.update_progress(0.2 + (percent * 0.3), f"Downloading Java: {int(percent*100)}%")
+                        
                         if downloaded % (1024*1024*10) == 0:  # Every 10MB
                             self.log_print(f"Downloaded: {downloaded/(1024*1024):.1f}MB / {total_size/(1024*1024):.1f}MB")
             
@@ -877,7 +762,7 @@ class GamaLauncher(ctk.CTk):
             self.update_status("Extracting Java...", "#ffaa00")
             self.log_print("Extracting Java...")
             
-            if platform == "windows":
+            if platform_name == "windows":
                 import zipfile
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(self.java_dir)
@@ -902,7 +787,6 @@ class GamaLauncher(ctk.CTk):
             
             zip_path.unlink()
             self.log_print("✓ Java extracted successfully!")
-            
             return True
             
         except Exception as e:
@@ -912,27 +796,28 @@ class GamaLauncher(ctk.CTk):
     def setup_minecraft(self):
         """Setup Minecraft installation"""
         from setup_minecraft import MinecraftSetup
-    
+        from server_list import MinecraftServerList
+        
         self.update_status("Setting up Minecraft...", "#ff8800")
         self.update_progress(0.3, "Setting up Minecraft...")
         self.log_print("Setting up Minecraft...")
-    
+        
         # Pass log_print callback for integration
         setup = MinecraftSetup(
-            str(self.minecraft_dir), 
-            MCVERSION, 
+            str(self.minecraft_dir),
+            MCVERSION,
             FABRICVERSION,
-            log_callback=self.log_print  # NEW: Pass log function
+            log_callback=self.log_print
         )
-    
+        
         if not setup.check_installation():
             self.update_status("Downloading Minecraft...", "#ffaa00")
             self.update_progress(0.4, "Downloading Minecraft...")
             self.log_print("Downloading Minecraft client...")
-        
-        # FIXED: Store assetIndex ID for sound loading
+            
+            # FIXED: Store assetIndex ID for sound loading
             self.asset_index_id = setup.download_minecraft()
-        
+            
             if not self.asset_index_id:
                 self.update_status("Failed to download Minecraft", "#ff0000")
                 self.log_print("✗ Minecraft download failed!")
@@ -942,23 +827,23 @@ class GamaLauncher(ctk.CTk):
                 self.log_print("  3. Check firewall/antivirus")
                 self.log_print("  4. Try again in a few minutes")
                 return False
-        
+            
             self.update_status("Downloading Fabric...", "#ffaa00")
             self.update_progress(0.5, "Downloading Fabric...")
             self.log_print("Downloading Fabric loader...")
-        
+            
             if not setup.download_fabric():
                 self.update_status("Failed to download Fabric", "#ff0000")
                 self.log_print("✗ Fabric download failed!")
                 return False
         else:
-        # Load assetIndex from existing installation
+            # Load assetIndex from existing installation
             version_json = self.minecraft_dir / "versions" / MCVERSION / f"{MCVERSION}.json"
             if version_json.exists():
                 try:
                     with open(version_json, 'r', encoding='utf-8') as f:
                         version_data = json.load(f)
-                        self.asset_index_id = version_data["assetIndex"]["id"]
+                    self.asset_index_id = version_data["assetIndex"]["id"]
                     self.log_print(f"✓ Using assetIndex: {self.asset_index_id}")
                 except:
                     self.asset_index_id = MCVERSION  # Fallback
@@ -968,9 +853,8 @@ class GamaLauncher(ctk.CTk):
         self.log_print("Configuring server list...")
         server_list = MinecraftServerList(self.minecraft_dir)
         server_list.add_gama_server()
-
+        
         return True
-
     
     def prepare_mods(self):
         """Prepare mods for selected tier"""
@@ -997,6 +881,7 @@ class GamaLauncher(ctk.CTk):
         
         for category in mod_categories:
             source_folder = self.mods_source_dir / category
+            
             if source_folder.exists():
                 for mod_file in source_folder.glob("*.jar"):
                     try:
@@ -1062,6 +947,33 @@ class GamaLauncher(ctk.CTk):
     def launch_sequence(self, username: str):
         """Launch sequence thread"""
         try:
+            # Check Java
+            self.update_status("Checking Java installation...", "#ff8800")
+            self.update_progress(0.1, "Checking Java...")
+            self.log_print("Checking for Java 17...")
+            
+            java_exe = self.java_dir / "bin" / ("java.exe" if os.name == "nt" else "java")
+            
+            if not java_exe.exists():
+                self.update_status("Downloading Java 17...", "#ffaa00")
+                self.update_progress(0.2, "Downloading Java...")
+                self.log_print("Java not found, downloading...")
+                
+                if self.download_java():
+                    self.update_status("Java 17 ready", "#00ff00")
+                    self.update_progress(1.0, "Java ready")
+                    self.log_print("✓ Java 17 ready!")
+                else:
+                    self.update_status("Failed to download Java", "#ff0000")
+                    self.update_progress(0, "Java download failed")
+                    self.log_print("✗ Java download failed!")
+                    self.launch_btn.configure(state="normal", text="🚀 LAUNCH GAME")
+                    return
+            else:
+                self.update_status("Java 17 ready", "#00ff00")
+                self.update_progress(1.0, "Java ready")
+                self.log_print("✓ Java 17 found!")
+            
             # Setup Minecraft
             if not self.setup_minecraft():
                 self.launch_btn.configure(state="normal", text="🚀 LAUNCH GAME")
@@ -1074,7 +986,6 @@ class GamaLauncher(ctk.CTk):
             
             tier = self.tier_var.get()
             tier_config = self.mod_lists["tiers"][tier]
-            
             base_ram = tier_config["ram"]
             shaders_enabled = self.shaders_var.get()
             
@@ -1120,9 +1031,7 @@ class GamaLauncher(ctk.CTk):
             self.update_progress(0.7, "Building configuration...")
             self.log_print("Building launch configuration...")
             
-            java_exe = self.java_dir / "bin" / ("java.exe" if os.name == "nt" else "java")
             version_name = f"fabric-loader-{FABRICVERSION}-{MCVERSION}"
-            
             version_json_path = self.minecraft_dir / "versions" / version_name / f"{version_name}.json"
             
             if not version_json_path.exists():
@@ -1132,6 +1041,7 @@ class GamaLauncher(ctk.CTk):
                 fabric_profile = json.load(f)
             
             main_class = fabric_profile.get("mainClass")
+            
             if not main_class:
                 raise Exception("Main class not found!")
             
@@ -1234,7 +1144,6 @@ class GamaLauncher(ctk.CTk):
             # Create log file
             logs_dir = self.minecraft_dir / "logs"
             logs_dir.mkdir(exist_ok=True)
-            
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             log_file = logs_dir / f"launcher_{timestamp}.log"
             
@@ -1270,7 +1179,6 @@ class GamaLauncher(ctk.CTk):
             
             self.update_status(f"Game launched! Window appearing soon...", "#00ff00")
             self.update_progress(0.95, f"Game started ({elapsed_final}s)")
-            
             self.log_print(f"✓ Game started! ({elapsed_final}s)")
             self.log_print("You can minimize this window")
             
@@ -1334,12 +1242,12 @@ if __name__ == "__main__":
     print("GAMA SERVER LAUNCHER v2.1.0")
     print("="*60)
     print("Features:")
-    print(" • New tier system: Very Low/Low/Medium/High/Very High/Ultra")
-    print(" • Shader checkbox (tier-gated)")
-    print(" • Fixed vanilla sounds (full asset download)")
-    print(" • System recommendations (with/without shaders)")
-    print(" • Log window for real-time feedback")
-    print(" • Smart path detection (installed vs portable)")
+    print("  • New tier system: Very Low/Low/Medium/High/Very High/Ultra")
+    print("  • Shader checkbox (tier-gated)")
+    print("  • Fixed vanilla sounds (full asset download)")
+    print("  • System recommendations (with/without shaders)")
+    print("  • Log window for real-time feedback")
+    print("  • Smart path detection (installed vs portable)")
     print("="*60)
     print()
     

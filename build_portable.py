@@ -1,224 +1,223 @@
+# -*- coding: utf-8 -*-
 """
-Build portable ZIP - with all mods and shaders
-UPDATED: New tier names and version 2.1.0
+Build script - Creates Windows Portable ZIP
 """
-
-
-import sys
-import io
-
-# Fix encoding for GitHub Actions
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 import os
+import sys
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
 VERSION = "2.1.0"
 
-print(" Building Portable ZIP Distribution")
+print("📦 Building Gama Launcher Windows Portable")
 print("="*50)
 
-# Check if EXE exists
-if not Path("dist/GamaLauncher.exe").exists():
-    print(" GamaLauncher.exe not found in dist/")
-    print("   Run build_installer.py first to create the EXE")
-    exit(1)
+# Check if EXE already exists (from installer build)
+exe_path = Path("dist") / "GamaLauncher.exe"
 
-# Create portable folder
-print("\n Creating portable folder...")
-portable_dir = Path("dist/GamaLauncher-Portable")
+if not exe_path.exists():
+    print("\n⚙️  EXE not found, building with PyInstaller...")
+    
+    # Clean old builds
+    for d in ['build', 'dist']:
+        if os.path.exists(d):
+            shutil.rmtree(d)
+    
+    pyinstaller_args = [
+        'pyinstaller',
+        '--onefile',
+        '--windowed',
+        '--name=GamaLauncher',
+        '--icon=Logo.jpg',
+        '--add-data=Logo.jpg;.',
+        '--add-data=mods;mods',
+        '--add-data=shaderpacks;shaderpacks',
+        '--add-data=mod_lists.json;.',
+        # Hidden imports
+        '--hidden-import=customtkinter',
+        '--hidden-import=PIL',
+        '--hidden-import=psutil',
+        '--hidden-import=GPUtil',
+        '--hidden-import=requests',
+        '--hidden-import=json',
+        '--hidden-import=urllib3',
+        '--hidden-import=certifi',
+        'launcher.py'
+    ]
+    
+    # Check if assets exist and add them
+    if Path("assets").exists():
+        print("  ✓ Found assets/ folder - will be included")
+        pyinstaller_args.insert(-1, '--add-data=assets;assets')
+    
+    try:
+        subprocess.run(pyinstaller_args, check=True)
+        print("✅ EXE built successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ PyInstaller failed: {e}")
+        sys.exit(1)
+else:
+    print("\n✓ Using existing EXE from dist/")
 
+# Create portable structure
+print("\n📦 Creating portable package...")
+
+portable_name = f"GamaLauncher-Portable-v{VERSION}"
+portable_dir = Path("dist") / portable_name
+
+# Clean old portable if exists
 if portable_dir.exists():
     shutil.rmtree(portable_dir)
 
-portable_dir.mkdir(parents=True)
+portable_dir.mkdir(parents=True, exist_ok=True)
 
 # Copy EXE
-print("   • Copying launcher...")
-shutil.copy("dist/GamaLauncher.exe", portable_dir)
+print("   • Copying executable...")
+shutil.copy2(exe_path, portable_dir / "GamaLauncher.exe")
 
 # Copy Logo
 print("   • Copying logo...")
 if Path("Logo.jpg").exists():
-    shutil.copy("Logo.jpg", portable_dir)
+    shutil.copy2("Logo.jpg", portable_dir / "Logo.jpg")
 
-# Copy ALL mods
+# Copy mods
 print("   • Copying mods...")
 if Path("mods").exists():
     shutil.copytree("mods", portable_dir / "mods")
-    mod_count = sum(1 for _ in (portable_dir / "mods").rglob("*.jar"))
-    print(f"      Copied {mod_count} mods")
 else:
-    print("       Warning: mods folder not found!")
+    print("     ⚠️  No mods folder found!")
 
-# Copy ALL shaderpacks
+# Copy shaderpacks
 print("   • Copying shaderpacks...")
 if Path("shaderpacks").exists():
     shutil.copytree("shaderpacks", portable_dir / "shaderpacks")
-    shader_count = sum(1 for _ in (portable_dir / "shaderpacks").rglob("*.zip"))
-    print(f"      Copied {shader_count} shaderpacks")
 else:
-    print("       Warning: shaderpacks folder not found!")
+    print("     ⚠️  No shaderpacks folder found!")
 
-# Copy config
+# Copy mod_lists.json
 print("   • Copying config...")
 if Path("mod_lists.json").exists():
-    shutil.copy("mod_lists.json", portable_dir)
+    shutil.copy2("mod_lists.json", portable_dir / "mod_lists.json")
+else:
+    print("     ⚠️  No mod_lists.json found!")
 
-print("   • Copying version info...")
-if Path("version.json").exists():
-    shutil.copy("version.json", portable_dir)
+# Copy assets if they exist
+assets_included = False
+if Path("assets").exists():
+    print("   • Copying assets (~400MB, may take a moment)...")
+    shutil.copytree("assets", portable_dir / "assets")
+    assets_included = True
+    print("     ✓ Assets included")
+else:
+    print("   • No assets folder (users will download on first launch)")
 
-# Create README with new tier names
+# Create README.txt
 print("   • Creating README...")
-readme_content = f"""
-╔═══════════════════════════════════════════════════════════════╗
-║          GAMA LAUNCHER v{VERSION} - PORTABLE EDITION           ║
-╚═══════════════════════════════════════════════════════════════╝
+readme_content = f"""GAMA LAUNCHER v{VERSION} - PORTABLE EDITION
+{'='*60}
 
- WHAT'S INCLUDED:
+QUICK START:
+1. Run GamaLauncher.exe
+2. Enter your Minecraft username
+3. Select quality preset
+4. Click LAUNCH GAME
 
-✓ Gama Launcher (GamaLauncher.exe)
-✓ All mods (base, medium, heavy, ultimate folders)
-✓ All shaderpacks (Complementary Reimagined & Unbound)
-✓ Configuration files
+FEATURES:
+• No installation required
+• Includes all mods and shaderpacks
+{'• Pre-downloaded game assets (~400MB)' if assets_included else '• Assets will download on first launch'}
+• Automatic Java 17 download
+• Automatic Minecraft + Fabric installation
+• Quality presets: Very Low to Ultra
+• Optional shader support
 
- HOW TO USE:
+SYSTEM REQUIREMENTS:
+• Windows 10/11 64-bit
+• 4GB RAM minimum (8GB+ recommended for shaders)
+• ~2GB free disk space (more for game files)
 
-1. Extract this entire folder anywhere you want
-2. Run GamaLauncher.exe
-3. Select your quality preset
-4. Enable shaders if desired (Medium and above)
-5. Enter your username
-6. Click "LAUNCH GAME"
+SERVER:
+• Name: GAMA KLUB
+• IP: gamaklub.ggwp.cc
+• Automatically added to multiplayer list
 
- FILE LOCATIONS:
+PORTABLE MODE:
+This is a portable version. All files (Minecraft, Java, saves, etc.)
+will be stored in the "runtime" folder next to the executable.
 
-• This folder: Contains mods and shaders (read-only)
-• AppData folder: Game files, Java, Minecraft
-  (C:\\Users\\YourName\\AppData\\Roaming\\GamaLauncher)
+You can move the entire folder to another location or USB drive.
 
- TIPS:
+SUPPORT:
+• Discord: [Your Discord]
+• GitHub: https://github.com/wckdg/gama-launcher
 
-• First launch downloads Java + Minecraft (~250MB)
-• First launch takes 2-4 minutes to load all mods
-• You can move this folder anywhere - it's fully portable!
-• Desktop stays clean - no files created there
-• To uninstall: Delete this folder + AppData\\GamaLauncher
-
-  SYSTEM REQUIREMENTS:
-
-┌─────────────┬─────────┬──────────────────────────────────────┐
-│ Preset      │ RAM     │ Hardware Requirements                │
-├─────────────┼─────────┼──────────────────────────────────────┤
-│ Very Low    │ 4GB     │ Any PC, integrated graphics          │
-│ Low         │ 6GB     │ Any PC, integrated graphics          │
-│ Medium      │ 8-10GB  │ GTX 960 / RX 560 (shaders optional)  │
-│ High        │ 10-12GB │ GTX 1060 / RX 580 (shaders optional) │
-│ Very High   │ 12-14GB │ GTX 1660 / RX 5600 XT + DH LODs      │
-│ Ultra       │ 16-18GB │ RTX 3060 / RX 6700 XT (max visuals)  │
-└─────────────┴─────────┴──────────────────────────────────────┘
-
-Note: +2GB RAM recommended when shaders enabled
-
- SHADER SUPPORT:
-
-• Very Low / Low: Shaders NOT available (performance focus)
-• Medium / High: Complementary Reimagined (optional)
-• Very High: Complementary Reimagined (optional)
-• Ultra: Complementary Unbound (optional)
-
-Shaders are controlled by checkbox in launcher.
-
- TROUBLESHOOTING:
-
-• If launcher won't start: Install Visual C++ Redistributable
-  https://aka.ms/vs/17/release/vc_redist.x64.exe
-
-• If game crashes: Check logs in:
-  AppData\\GamaLauncher\\runtime\\minecraft\\logs
-
-• No sound in game: First launch may take time to download
-  all assets. Wait for initial setup to complete.
-
-• Server offline: Wait for admin to start server or play
-  in singleplayer mode.
-
-• Performance issues: Try lower preset or disable shaders.
-  Very Low preset is optimized for 60+ FPS on weak systems.
-
-═══════════════════════════════════════════════════════════════
-
- CHANGELOG v{VERSION}:
-
-• NEW: Renamed tiers to standard game presets
-  (Very Low/Low/Medium/High/Very High/Ultra)
-• NEW: Shader checkbox - enable/disable per session
-• FIXED: Vanilla sounds now load properly
-• FIXED: Better asset downloading (no more silent blocks)
-• IMPROVED: More accurate RAM requirements per tier
-• IMPROVED: Better UI layout and tier descriptions
-
-═══════════════════════════════════════════════════════════════
-
-Made with Heart  for Gama Server Community
-
-═══════════════════════════════════════════════════════════════
+{'='*60}
+Enjoy the game!
 """
 
-(portable_dir / "README.txt").write_text(readme_content, encoding='utf-8')
+with open(portable_dir / "README.txt", 'w', encoding='utf-8') as f:
+    f.write(readme_content)
 
-# Create ZIP archive
-print("\n Creating ZIP archive...")
-zip_name = f"dist/GamaLauncher-Portable-v{VERSION}.zip"
+# Create ZIP
+print("\n📦 Creating ZIP archive...")
+zip_name = f"{portable_name}.zip"
+zip_path = Path("dist") / zip_name
 
-with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
-    total_files = sum(1 for _ in portable_dir.rglob('*') if _.is_file())
-    current = 0
-    
+# Remove old ZIP if exists
+if zip_path.exists():
+    os.remove(zip_path)
+
+with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
     for root, dirs, files in os.walk(portable_dir):
         for file in files:
-            current += 1
             file_path = Path(root) / file
             arcname = file_path.relative_to(portable_dir.parent)
             zipf.write(file_path, arcname)
             
-            if current % 10 == 0:
-                print(f"   Packing: {current}/{total_files} files ({current*100//total_files}%)", end='\r')
-    
-    print(f"   Packing: {total_files}/{total_files} files (100%) ✓ ")
+            # Show progress for large files
+            if file_path.stat().st_size > 10 * 1024 * 1024:  # > 10MB
+                print(f"     Compressing: {file_path.name}...")
 
-# Cleanup temp folder
-print("   • Cleaning up temp folder...")
-shutil.rmtree(portable_dir)
+zip_size = zip_path.stat().st_size / (1024*1024)
 
-# Show results
+# Calculate total size
+total_size = sum(f.stat().st_size for f in portable_dir.rglob('*') if f.is_file())
+total_size_mb = total_size / (1024*1024)
+
 print("\n" + "="*60)
-print(" PORTABLE ZIP CREATED!")
+print("✅ PORTABLE BUILD COMPLETE!")
+print("="*60)
+print(f"\n📂 Created:")
+print(f"  • {zip_path}")
+print(f"\n📊 Sizes:")
+print(f"  Uncompressed: {total_size_mb:.1f} MB")
+print(f"  ZIP archive: {zip_size:.1f} MB")
+print(f"  Compression: {(1 - zip_size/total_size_mb)*100:.1f}%")
+
+print("\n💡 Portable ZIP includes:")
+print("  ✓ Launcher executable")
+print("  ✓ All mods (base/medium/heavy/ultimate)")
+print("  ✓ All shaderpacks")
+
+if assets_included:
+    print("  ✓ Pre-downloaded assets (~400MB)")
+else:
+    print("  ⚠️  No assets (users will download on first launch)")
+
+print("  ✓ README.txt")
+
+print("\n📝 Usage:")
+print("  1. Extract ZIP to any folder")
+print("  2. Run GamaLauncher.exe")
+print("  3. Everything stored in 'runtime' subfolder")
+
+print("\n🎉 Ready to distribute!")
 print("="*60)
 
-zip_size = Path(zip_name).stat().st_size / (1024*1024)
-
-print(f"\n File: {zip_name}")
-print(f" Size: {zip_size:.1f} MB")
-
-print("\n Contents:")
-print(f"   • GamaLauncher.exe")
-print(f"   • Logo.jpg")
-print(f"   • mods/ (all tiers: base/medium/heavy/ultimate)")
-print(f"   • shaderpacks/ (Complementary Reimagined & Unbound)")
-print(f"   • mod_lists.json")
-print(f"   • README.txt")
-
-print("\n Ready to distribute!")
-print("\n Share this ZIP file:")
-print("   • Upload to Google Drive / Mega / MediaFire")
-print("   • Users extract and run GamaLauncher.exe")
-print("   • Everything works out of the box!")
-print("   • No installation required - fully portable!")
-
-print("\n" + "="*60)
-
+# Clean up portable folder (keep only ZIP)
+print("\n🧹 Cleaning up temporary files...")
+shutil.rmtree(portable_dir)
+print("  ✓ Temporary folder removed")

@@ -37,3 +37,6 @@ Thumbs.db
 # Large files (optional - uncomment if you want mods/shaders in repo)
 # mods/
 # shaderpacks/
+
+# DON'T ignore assets - we want them in repo
+# assets/

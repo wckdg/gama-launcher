@@ -33,11 +33,10 @@ class GamaUpdater:
     
     def parse_version(self, version_str: str) -> tuple:
         """Parse version string to tuple for comparison"""
-        # Remove 'v' prefix if present
         version_str = version_str.lstrip('v')
         try:
             parts = version_str.split('.')
-            return tuple(int(p) for p in parts[:3])  # Major.Minor.Patch
+            return tuple(int(p) for p in parts[:3])
         except:
             return (0, 0, 0)
     
@@ -73,9 +72,8 @@ class GamaUpdater:
                 download_url = None
                 asset_name = None
                 
-                # Determine which asset to download based on platform
                 if sys.platform == "win32":
-                    # Look for Windows installer or portable
+                    # Windows - look for installer or portable
                     for asset in assets:
                         name = asset["name"].lower()
                         if "setup" in name or "installer" in name:
@@ -86,7 +84,7 @@ class GamaUpdater:
                             download_url = asset["browser_download_url"]
                             asset_name = asset["name"]
                 elif sys.platform == "darwin":
-                    # macOS - look for DMG or app.zip
+                    # macOS - look for DMG
                     for asset in assets:
                         name = asset["name"].lower()
                         if name.endswith(".dmg") or (name.endswith(".zip") and "macos" in name):
@@ -130,7 +128,6 @@ class GamaUpdater:
             
             total_size = int(response.headers.get('content-length', 0))
             
-            # Save to temp directory
             temp_dir = Path(tempfile.gettempdir()) / "GamaLauncherUpdate"
             temp_dir.mkdir(parents=True, exist_ok=True)
             
@@ -147,7 +144,6 @@ class GamaUpdater:
                             progress = downloaded / total_size
                             progress_callback(progress)
                         
-                        # Log every 5MB
                         if downloaded % (1024 * 1024 * 5) == 0:
                             mb_downloaded = downloaded / (1024 * 1024)
                             mb_total = total_size / (1024 * 1024)
@@ -161,10 +157,7 @@ class GamaUpdater:
             return None
     
     def apply_update_windows(self, installer_path: Path) -> bool:
-        """
-        Apply update on Windows
-        Creates a batch script that replaces the EXE after launcher closes
-        """
+        """Apply update on Windows"""
         try:
             if not getattr(sys, 'frozen', False):
                 self.log("⚠️  Can't auto-update in development mode")
@@ -173,7 +166,6 @@ class GamaUpdater:
             
             current_exe = Path(sys.executable)
             
-            # Check if it's an installer (run it) or portable (replace EXE)
             if "setup" in installer_path.name.lower() or "installer" in installer_path.name.lower():
                 # Run installer
                 self.log("🚀 Launching installer...")
@@ -186,7 +178,7 @@ class GamaUpdater:
                 return True
             
             elif installer_path.suffix.lower() == ".zip":
-                # Portable update - extract and replace
+                # Portable update
                 self.log("📦 Extracting portable update...")
                 
                 import zipfile
@@ -196,7 +188,6 @@ class GamaUpdater:
                 with zipfile.ZipFile(installer_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
                 
-                # Find the new EXE
                 new_exe = None
                 for item in extract_dir.rglob("GamaLauncher.exe"):
                     new_exe = item
@@ -231,7 +222,6 @@ del "%~f0"
                 self.log("🚀 Applying update...")
                 self.log("   Launcher will restart automatically")
                 
-                # Launch batch script and exit
                 subprocess.Popen([str(batch_script)], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
                 
                 return True
