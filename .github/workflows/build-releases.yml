@@ -12,7 +12,13 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Checkout LFS objects
+        run: git lfs pull
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,20 +28,17 @@ jobs:
       - name: Install dependencies
         run: pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
       
-      - name: Download Inno Setup
-        run: |
-          curl -L -o innosetup.exe "https://jrsoftware.org/download.php/is.exe"
-          .\innosetup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+      - name: Install Inno Setup
+        run: choco install innosetup -y
         shell: powershell
       
-      - name: Wait for installation
-        run: Start-Sleep -Seconds 30
-        shell: powershell
-      
-      - name: Build
+      - name: Build Installer
         run: python build_installer.py
+        env:
+          PYTHONIOENCODING: utf-8
       
-      - uses: actions/upload-artifact@v4
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: dist/GamaLauncher-Setup-v*.exe
@@ -45,7 +48,13 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Checkout LFS objects
+        run: git lfs pull
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,12 +66,17 @@ jobs:
       
       - name: Build EXE
         run: python build_installer.py
+        env:
+          PYTHONIOENCODING: utf-8
         continue-on-error: true
       
-      - name: Build Portable
+      - name: Build Portable ZIP
         run: python build_portable.py
+        env:
+          PYTHONIOENCODING: utf-8
       
-      - uses: actions/upload-artifact@v4
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
         with:
           name: windows-portable
           path: dist/GamaLauncher-Portable-v*.zip
@@ -72,7 +86,13 @@ jobs:
     runs-on: macos-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Checkout LFS objects
+        run: git lfs pull
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -84,19 +104,20 @@ jobs:
           pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
           brew install create-dmg
       
-      - name: Create icon
+      - name: Create icon.icns
         run: |
           mkdir -p icon.iconset
-          sips -z 16 16 Logo.jpg --out icon.iconset/icon_16x16.png || touch icon.iconset/icon_16x16.png
-          sips -z 32 32 Logo.jpg --out icon.iconset/icon_32x32.png || touch icon.iconset/icon_32x32.png
-          sips -z 128 128 Logo.jpg --out icon.iconset/icon_128x128.png || touch icon.iconset/icon_128x128.png
-          sips -z 256 256 Logo.jpg --out icon.iconset/icon_256x256.png || touch icon.iconset/icon_256x256.png
-          iconutil -c icns icon.iconset -o icon.icns || touch icon.icns
+          sips -z 16 16 Logo.jpg --out icon.iconset/icon_16x16.png 2>/dev/null || touch icon.iconset/icon_16x16.png
+          sips -z 32 32 Logo.jpg --out icon.iconset/icon_32x32.png 2>/dev/null || touch icon.iconset/icon_32x32.png
+          sips -z 128 128 Logo.jpg --out icon.iconset/icon_128x128.png 2>/dev/null || touch icon.iconset/icon_128x128.png
+          sips -z 256 256 Logo.jpg --out icon.iconset/icon_256x256.png 2>/dev/null || touch icon.iconset/icon_256x256.png
+          iconutil -c icns icon.iconset -o icon.icns 2>/dev/null || touch icon.icns
       
-      - name: Build
+      - name: Build macOS App
         run: python build_macos.py
       
-      - uses: actions/upload-artifact@v4
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
           path: dist/GamaLauncher-v*-macOS.dmg
@@ -134,18 +155,15 @@ jobs:
         with:
           name: Gama Launcher v${{ steps.version.outputs.VERSION }}
           body: |
-            ## 🎉 Gama Launcher v${{ steps.version.outputs.VERSION }}
+            ## Gama Launcher v${{ steps.version.outputs.VERSION }}
             
-            ### 📦 Downloads
-            - **Windows Installer** - Recommended
-            - **Windows Portable** - No installation
-            - **macOS DMG** - For Mac users
+            ### Downloads
+            - **Windows Installer** (.exe) - Recommended
+            - **Windows Portable** (.zip) - No installation
+            - **macOS** (.dmg) - For Mac users
             
-            ### 🎮 Server
-            IP: `gamaklub.ggwp.cc` (auto-added)
-            
-            ### 💡 Requirements
-            Windows 10/11 or macOS 10.15+ | 4GB+ RAM
+            ### Server
+            IP: gamaklub.ggwp.cc (auto-added to multiplayer)
           files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
