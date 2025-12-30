@@ -29,93 +29,51 @@ JAVAVERSION = "17"
 class GamaLauncher(ctk.CTk):
     def __init__(self):
         super().__init__()
-        
-        # Paths - Smart detection for installer vs portable
+    
+    # Detect paths based on platform and execution mode
         if getattr(sys, 'frozen', False):
-            # Running as EXE
-            self.base_dir = Path(os.path.dirname(sys.executable))
-            
-            # Check if installed (in Program Files) or portable
-            program_files = ["C:\\Program Files", "C:\\Program Files (x86)"]
-            is_installed = any(str(self.base_dir).startswith(pf) for pf in program_files)
-            
-            if is_installed:
-                # INSTALLED VERSION
-                self.log_print(f"📦 Running from installation: {self.base_dir}")
-                
-                # Game files in AppData
-                appdata = Path(os.getenv('APPDATA')) / "GamaLauncher"
-                appdata.mkdir(parents=True, exist_ok=True)
-                
-                self.runtime_dir = appdata / "runtime"
-                self.config_file = appdata / "config.json"
-                self.mod_lists_file = appdata / "mod_lists.json"
-                
-                # Mods source: Installation folder (read-only)
-                self.mods_source_dir = self.base_dir / "mods"
-                self.shaderpacks_dir = self.base_dir / "shaderpacks"
-                
-                # Copy mod_lists.json to AppData if not exists
-                if not self.mod_lists_file.exists() and (self.base_dir / "mod_lists.json").exists():
-                    shutil.copy(self.base_dir / "mod_lists.json", self.mod_lists_file)
-                    
+        # Running as bundled executable
+            if sys.platform == 'darwin':
+            # macOS app bundle
+                exe_path = Path(sys.executable)
+                if 'Contents/MacOS' in str(exe_path):
+                # Inside .app bundle - use Resources folder
+                    self.base_dir = exe_path.parent.parent / 'Resources'
+                else:
+                # Standalone executable
+                    self.base_dir = exe_path.parent
             else:
-                # PORTABLE VERSION (EXE in Downloads/Desktop/USB)
-                self.log_print(f"💼 Running portable from: {self.base_dir}")
-                
-                # Everything in AppData for cleanliness
-                appdata = Path(os.getenv('APPDATA')) / "GamaLauncher"
-                appdata.mkdir(parents=True, exist_ok=True)
-                
-                self.runtime_dir = appdata / "runtime"
-                self.config_file = appdata / "config.json"
-                self.mod_lists_file = appdata / "mod_lists.json"
-                
-                # Check for mods next to EXE, otherwise use AppData
-                if (self.base_dir / "mods").exists():
-                    self.mods_source_dir = self.base_dir / "mods"
-                else:
-                    self.mods_source_dir = appdata / "mods"
-                    self.mods_source_dir.mkdir(exist_ok=True)
-                
-                if (self.base_dir / "shaderpacks").exists():
-                    self.shaderpacks_dir = self.base_dir / "shaderpacks"
-                else:
-                    self.shaderpacks_dir = appdata / "shaderpacks"
-                    self.shaderpacks_dir.mkdir(exist_ok=True)
+            # Windows EXE
+                self.base_dir = Path(sys.executable).parent
         else:
-            # Development mode
-            self.base_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+        # Running as Python script
+            self.base_dir = Path(__file__).parent
+    
+    # Safety check - ensure base_dir is valid
+        if self.base_dir is None or not self.base_dir.exists():
+            self.base_dir = Path.home() / 'GamaLauncher'
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            print(f"⚠️  Created fallback directory: {self.base_dir}")
+    
+        print(f"📁 Base directory: {self.base_dir}")
+    
+    # Set up directories
+        self.mods_dir = self.base_dir / "mods"
+        self.shaderpacks_dir = self.base_dir / "shaderpacks"
+        self.mod_lists_file = self.base_dir / "mod_lists.json"
+    
+        # Runtime directory (where Minecraft/Java will be installed)
+        if sys.platform == 'darwin':
+            self.runtime_dir = Path.home() / 'Library' / 'Application Support' / 'GamaLauncher'
+        else:
             self.runtime_dir = self.base_dir / "runtime"
-            self.mods_source_dir = self.base_dir / "mods"
-            self.shaderpacks_dir = self.base_dir / "shaderpacks"
-            self.config_file = self.base_dir / "config.json"
-            self.mod_lists_file = self.base_dir / "mod_lists.json"
-        
+    
+        self.runtime_dir.mkdir(parents=True, exist_ok=True)
+    
+        self.minecraft_dir = self.runtime_dir / ".minecraft"
         self.java_dir = self.runtime_dir / "java"
-        self.minecraft_dir = self.runtime_dir / "minecraft"
-        
-        # Create directories
-        self.minecraft_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Load configurations
-        self.load_config()
-        self.load_mod_lists()
-        
-        # Detect system specs
-        self.detected_specs = self.detect_system_specs()
-        
-        # Store assetIndex ID (for sound fix)
-        self.asset_index_id = None
-        
-        threading.Thread(target=self.check_for_updates, daemon=True).start()
+        self.fabric_dir = self.minecraft_dir / "versions"
 
-        # Setup UI
-        self.setup_window()
-        self.create_widgets()
-        
-        # Check Java on startup
-        threading.Thread(target=self.check_java, daemon=True).start()
     
     def log_print(self, message: str):
         """Print to console AND log window"""

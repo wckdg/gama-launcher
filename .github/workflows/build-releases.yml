@@ -104,17 +104,14 @@ jobs:
           pip install pyinstaller customtkinter pillow psutil GPUtil requests urllib3 certifi
           brew install create-dmg
       
-      - name: Create icon.icns
-        run: |
-          mkdir -p icon.iconset
-          sips -z 16 16 Logo.jpg --out icon.iconset/icon_16x16.png 2>/dev/null || touch icon.iconset/icon_16x16.png
-          sips -z 32 32 Logo.jpg --out icon.iconset/icon_32x32.png 2>/dev/null || touch icon.iconset/icon_32x32.png
-          sips -z 128 128 Logo.jpg --out icon.iconset/icon_128x128.png 2>/dev/null || touch icon.iconset/icon_128x128.png
-          sips -z 256 256 Logo.jpg --out icon.iconset/icon_256x256.png 2>/dev/null || touch icon.iconset/icon_256x256.png
-          iconutil -c icns icon.iconset -o icon.icns 2>/dev/null || touch icon.icns
-      
       - name: Build macOS App
         run: python build_macos.py
+      
+      - name: Sign app bundle (ad-hoc)
+        run: |
+          codesign --force --deep --sign - dist/GamaLauncher.app
+          codesign --verify --verbose dist/GamaLauncher.app
+        continue-on-error: true
       
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
@@ -158,12 +155,22 @@ jobs:
             ## Gama Launcher v${{ steps.version.outputs.VERSION }}
             
             ### Downloads
-            - **Windows Installer** (.exe) - Recommended
-            - **Windows Portable** (.zip) - No installation
+            - **Windows Installer** (.exe) - Recommended for Windows users
+            - **Windows Portable** (.zip) - No installation required
             - **macOS** (.dmg) - For Mac users
             
+            ### macOS Installation
+            1. Download and open the DMG
+            2. Drag GamaLauncher to Applications
+            3. **Right-click** the app and select "Open" (first time only)
+            4. Click "Open" when warned about unidentified developer
+            
             ### Server
-            IP: gamaklub.ggwp.cc (auto-added to multiplayer)
+            IP: `gamaklub.ggwp.cc` (automatically added to multiplayer list)
+            
+            ### Requirements
+            - Windows 10/11 or macOS 10.15+
+            - 4GB RAM minimum (8GB+ recommended)
           files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
